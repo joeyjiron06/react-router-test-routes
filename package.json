@@ -1,0 +1,40 @@
+{
+  "name": "react-router-test-routes",
+  "version": "1.0.0-beta.1",
+  "description": "A utility for react-router get get routes that can be used for testing with vitest.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "typings": "dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "keywords": [
+    "react-router",
+    "vitest",
+    "test",
+    "nodejs",
+    "react",
+    "router",
+    "fs-routes",
+    "@react-router"
+  ],
+  "author": "Joey Jiron <joeyjiron06@gmail.com>",
+  "license": "ISC",
+  "devDependencies": {
+    "@react-router/dev": "^7.9.4",
+    "@react-router/fs-routes": "^7.9.4",
+    "@types/node": "^24.9.1",
+    "react-router": "^7.9.4",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "package-directory": "^8.1.0"
+  }
+}
