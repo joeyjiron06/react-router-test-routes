@@ -1,7 +1,11 @@
 import type { RouteConfig, RouteConfigEntry } from "@react-router/dev/routes";
 import path from "path";
 import { routerMiddleware } from "./routerMiddleware";
-import type { RouteObject } from "react-router";
+import type {
+  IndexRouteObject,
+  NonIndexRouteObject,
+  RouteObject,
+} from "react-router";
 import { packageDirectory } from "package-directory";
 
 /**
@@ -11,7 +15,19 @@ import { packageDirectory } from "package-directory";
  *
  */
 
-export async function getRoutes() {
+let cachedRoutes: Promise<RouteObject[]> | undefined;
+
+export async function getRoutes(): Promise<RouteObject[]> {
+  if (cachedRoutes) {
+    return cachedRoutes;
+  }
+
+  cachedRoutes = loadRoutes();
+
+  return cachedRoutes;
+}
+
+async function loadRoutes(): Promise<RouteObject[]> {
   const appDirectory = await findAppDir();
 
   // Inform the fs-routes module where the app directory is located, otherwise an error will be thrown
@@ -31,12 +47,9 @@ export async function getRoutes() {
       id: "root",
       path: "/",
       Component: Root.default,
-      loader: routerMiddleware.wrapLoader(Root.loader),
-      action: routerMiddleware.wrapAction(Root.action),
-      meta: Root.meta,
-      links: Root.links,
+      loader: routerMiddleware.wrapLoader(Root.loader, "root"),
+      action: routerMiddleware.wrapAction(Root.action, "root"),
       ErrorBoundary: Root.ErrorBoundary,
-      HydrateFallback: Root.HydrateFallback,
       children: stubRoutes,
     },
   ];
@@ -63,17 +76,6 @@ async function findAppDir(): Promise<string> {
   return appDirectory;
 }
 
-type PartialRouteObject = Pick<
-  RouteObject,
-  | "id"
-  | "path"
-  | "Component"
-  | "loader"
-  | "action"
-  | "ErrorBoundary"
-  | "HydrateFallback"
->;
-
 async function createRouteObject(
   appDirectory: string,
   fsRoute: RouteConfigEntry
@@ -88,31 +90,45 @@ async function createRouteObject(
     ) ?? []
   );
 
-  // The typescript types for RouteObject are a bit strange between index routes
-  // and non-index routes, so we need to separate the code here and return different
-  // types based on whether it's an index route or not since index routes cannot have
-  // children.
-
-  const routeProperties: PartialRouteObject = {
-    id: fsRoute.id,
-    path: fsRoute.path,
-    Component: module.default,
-    loader: routerMiddleware.wrapLoader(module.loader),
-    action: routerMiddleware.wrapAction(module.action),
-    ErrorBoundary: module.ErrorBoundary,
-    HydrateFallback: module.HydrateFallback,
-  };
-
-  if (fsRoute.index) {
+  function createPartialRouteObject(): Pick<
+    RouteObject,
+    | "id"
+    | "path"
+    | "Component"
+    | "loader"
+    | "action"
+    | "ErrorBoundary"
+    | "HydrateFallback"
+  > {
     return {
-      index: true,
-      ...routeProperties,
+      id: fsRoute.id,
+      path: fsRoute.path,
+      Component: module.default,
+      loader: routerMiddleware.wrapLoader(module.loader, fsRoute.id),
+      action: routerMiddleware.wrapAction(module.action, fsRoute.id),
+      ErrorBoundary: module.ErrorBoundary,
+      HydrateFallback: module.HydrateFallback,
     };
   }
 
-  return {
-    index: false,
-    children,
-    ...routeProperties,
-  };
+  function createIndexRouteObject(): IndexRouteObject {
+    return {
+      index: true,
+      ...createPartialRouteObject(),
+    };
+  }
+
+  function createNonIndexRouteObject(): NonIndexRouteObject {
+    return {
+      index: false,
+      children,
+      ...createPartialRouteObject(),
+    };
+  }
+
+  if (fsRoute.index) {
+    return createIndexRouteObject();
+  }
+
+  return createNonIndexRouteObject();
 }
