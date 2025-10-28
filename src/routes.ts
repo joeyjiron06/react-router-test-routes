@@ -42,13 +42,18 @@ async function loadRoutes(): Promise<RouteObject[]> {
 
   const Root = await import(path.join(appDirectory, "root.tsx"));
 
+  const rootRoute = {
+    routeId: "root",
+    path: "/",
+  };
+
   return [
     {
-      id: "root",
-      path: "/",
+      id: rootRoute.routeId,
+      path: rootRoute.path,
       Component: Root.default,
-      loader: routerMiddleware.wrapLoader(Root.loader, "root"),
-      action: routerMiddleware.wrapAction(Root.action, "root"),
+      loader: routerMiddleware.wrapLoader(rootRoute, Root.loader),
+      action: routerMiddleware.wrapAction(rootRoute, Root.action),
       ErrorBoundary: Root.ErrorBoundary,
       children: stubRoutes,
     },
@@ -104,8 +109,8 @@ async function createRouteObject(
       id: fsRoute.id,
       path: fsRoute.path,
       Component: module.default,
-      loader: routerMiddleware.wrapLoader(module.loader, fsRoute.id),
-      action: routerMiddleware.wrapAction(module.action, fsRoute.id),
+      loader: routerMiddleware.wrapLoader(fsRoute, module.loader),
+      action: routerMiddleware.wrapAction(fsRoute, module.action),
       ErrorBoundary: module.ErrorBoundary,
       HydrateFallback: module.HydrateFallback,
     };

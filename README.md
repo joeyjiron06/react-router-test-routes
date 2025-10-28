@@ -49,9 +49,11 @@ import { navigateTo, routerMiddleware } from "react-router-test-routes";
 
 beforeAll(() => {
   // add an auth header to all requests when calling navigateTo
-  routerMiddleware.use(({ request }) => {
-    // can add, delete or clear all headers if you want to.
-    request.headers.append("my-auth-header", "someUserWhoIsAwesomeAuthToken");
+  routerMiddleware.use(({ request, route }) => {
+    // only append headers for root route, otherwise we might append it multiple times
+    if (route.id === "root") {
+      request.headers.append("my-auth-header", "someUserWhoIsAwesomeAuthToken");
+    }
   });
 });
 
@@ -66,7 +68,7 @@ it("should render", async () => {
 
 ### routerMiddleware.use(callback)
 
-**callback** - a callback that takes in a `Request` object, `routeId` which is the route that it's being called for. It will be called for all loaders and action. That means if you have a route like `/deeply/nested/route` the callback will be called for the following routes: `root, deeply, nested, route`. Note that it's always called for the root loader since root is always matched for all requests.
+**callback** - a callback that takes in arg of type `{request: Request, route: {routeId: string, path: string} }`. It will be called for all loaders down the nested path when calling `navigateTo`. That means if you have a route like `/deeply/nested/route` the callback will be called for the following routes: `root, and deeply.nested.route`. Note that it's always called for the root loader since root is always matched for all requests.
 
 ### routerMiddleware.removeAllListeners()
 

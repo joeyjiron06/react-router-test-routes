@@ -6,18 +6,23 @@ import type {
   Params,
 } from "react-router";
 
+type Route = {
+  routeId?: string;
+  path?: string;
+};
+
 type LoaderMiddleware = (
-  args: LoaderFunctionArgs & { routeId?: string },
+  args: LoaderFunctionArgs & { route: Route },
   context?: unknown
 ) => void | Promise<Parameters<LoaderMiddleware>>;
 
 type ActionMiddleware = (
-  args: ActionFunctionArgs & { routeId?: string },
+  args: ActionFunctionArgs & { route: Route },
   context?: unknown
 ) => void | Promise<Parameters<ActionMiddleware>>;
 
 type GenericMiddleware = (
-  args: DataFunctionArgs<any> & { routeId?: string },
+  args: DataFunctionArgs<any> & { route: Route },
   context?: unknown
 ) => void | Promise<Parameters<GenericMiddleware>>;
 
@@ -79,15 +84,15 @@ export function createRouterMiddleware() {
 
   return {
     wrapLoader(
-      realLoaderFn?: LoaderFunction,
-      routeId?: string
+      route: Route,
+      realLoaderFn?: LoaderFunction
     ): LoaderFunction | undefined {
       if (!realLoaderFn) {
         return undefined;
       }
 
       return async (args: LoaderFunctionArgs, context: unknown) => {
-        const modifiedArgs = await applyLoaders({ ...args, routeId }, context);
+        const modifiedArgs = await applyLoaders({ ...args, route }, context);
         return realLoaderFn(...modifiedArgs);
       };
     },
@@ -107,15 +112,15 @@ export function createRouterMiddleware() {
     },
 
     wrapAction(
-      realActionFn?: ActionFunction,
-      routeId?: string
+      route: Route,
+      realActionFn?: ActionFunction
     ): ActionFunction | undefined {
       if (!realActionFn) {
         return undefined;
       }
 
       return async (args: ActionFunctionArgs, context: unknown) => {
-        const modifiedArgs = await applyActions({ ...args, routeId }, context);
+        const modifiedArgs = await applyActions({ ...args, route }, context);
         return realActionFn(...modifiedArgs);
       };
     },
