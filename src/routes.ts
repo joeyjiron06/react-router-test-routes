@@ -7,6 +7,7 @@ import type {
   RouteObject,
 } from "react-router";
 import { findFileInProjectRoot, projectRoot } from "./fileLoader";
+import React from "react";
 
 /**
  * These are the routes that get rendered during tests. They are needed for certain
@@ -17,33 +18,11 @@ import { findFileInProjectRoot, projectRoot } from "./fileLoader";
 
 let routes: Promise<RouteObject[]> | undefined;
 
-export async function setup(importFn: (path: string) => Promise<any>) {
-  await loadRoutes(importFn);
-}
-
 export async function getRoutes(): Promise<RouteObject[]> {
-  if (!routes) {
-    throw new Error(
-      "react-router-test-router: routes have not been set up yet. Please call setup() before calling getRoutes()."
-    );
-  }
-
-  return routes;
-}
-
-export async function loadRoutes(
-  importFn: (path: string) => Promise<any>
-): Promise<RouteObject[]> {
-  if (routes) {
-    return routes;
-  }
-
   async function loadRoutes(): Promise<RouteObject[]> {
-    const appDirectory = await findAppDir(importFn);
+    const appDirectory = await findAppDir();
     // Inform the fs-routes module where the app directory is located, otherwise an error will be thrown
     globalThis.__reactRouterAppDirectory = path.join(projectRoot, appDirectory);
-
-    console.log("found appDirectory:", appDirectory);
 
     const routesFilename = findFileInProjectRoot(
       path.join(appDirectory, "routes"),
@@ -58,10 +37,8 @@ export async function loadRoutes(
       );
     }
 
-    const appRoutesModule = await importFn(routesFilename);
+    const appRoutesModule = await import(routesFilename);
     const appRoutes = await (appRoutesModule.default as RouteConfig);
-
-    console.log("loaded routes module");
 
     const rootFilename = findFileInProjectRoot(
       path.join(appDirectory, "root"),
@@ -74,10 +51,10 @@ export async function loadRoutes(
       );
     }
 
-    const Root = await importFn(rootFilename);
+    const Root = await import(rootFilename);
 
     const childRoutes = await Promise.all(
-      appRoutes.map((route) => createRouteObject(appDirectory, route, importFn))
+      appRoutes.map((route) => createRouteObject(appDirectory, route))
     );
 
     const rootRoute = {
@@ -89,7 +66,12 @@ export async function loadRoutes(
       {
         id: rootRoute.routeId,
         path: rootRoute.path,
-        Component: Root.default,
+        Component: () =>
+          React.createElement(
+            Root.Layout,
+            null,
+            React.createElement(Root.default)
+          ),
         loader: routerMiddleware.wrapLoader(rootRoute, Root.loader),
         action: routerMiddleware.wrapAction(rootRoute, Root.action),
         ErrorBoundary: Root.ErrorBoundary,
@@ -98,14 +80,14 @@ export async function loadRoutes(
     ];
   }
 
-  routes = loadRoutes();
+  if (!routes) {
+    routes = loadRoutes();
+  }
 
   return routes;
 }
 
-async function findAppDir(
-  importFn: (path: string) => Promise<any>
-): Promise<string> {
+async function findAppDir(): Promise<string> {
   const reactRouterConfigFilePath = findFileInProjectRoot(
     "react-router.config",
     { absolutePath: false }
@@ -117,36 +99,23 @@ async function findAppDir(
     );
   }
 
-  const reactRouterConfigFile = await importFn(reactRouterConfigFilePath);
-
-  // const appDirectory = path.join(
-  //   projectRoot,
-
-  // );
+  console.log("loading react-router.config from:", reactRouterConfigFilePath);
+  const reactRouterConfigFile = await import(reactRouterConfigFilePath);
 
   return reactRouterConfigFile.default.appDirectory || "app";
 }
 
 async function createRouteObject(
   appDirectory: string,
-  fsRoute: RouteConfigEntry,
-  importFn: (path: string) => Promise<any>
+  fsRoute: RouteConfigEntry
 ): Promise<RouteObject> {
   const modulePath = path.join(appDirectory, fsRoute.file);
 
-  console.log("loading route module:", modulePath);
-  const module = await importFn(modulePath);
-  console.log("loaded route module:", modulePath, {
-    default: module.default,
-    loader: module.loader,
-    action: module.action,
-    ErrorBoundary: module.ErrorBoundary,
-    HydrateFallback: module.HydrateFallback,
-  });
+  const module = await import(modulePath);
 
   const children = await Promise.all(
     fsRoute.children?.map((childRoute: RouteConfigEntry) =>
-      createRouteObject(appDirectory, childRoute, importFn)
+      createRouteObject(appDirectory, childRoute)
     ) ?? []
   );
 
