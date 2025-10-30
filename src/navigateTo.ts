@@ -9,7 +9,7 @@ import { render, type RenderResult } from "@testing-library/react";
 import React from "react";
 
 type NavigationOptions = {
-  headers: HeadersInit;
+  headers?: HeadersInit;
 };
 
 /**

@@ -6,7 +6,7 @@ import type {
   NonIndexRouteObject,
   RouteObject,
 } from "react-router";
-import { findFileInProjectRoot, loadModule, projectRoot } from "./fileLoader";
+import { findFileInProjectRoot, projectRoot } from "./fileLoader";
 
 /**
  * These are the routes that get rendered during tests. They are needed for certain
@@ -17,13 +17,29 @@ import { findFileInProjectRoot, loadModule, projectRoot } from "./fileLoader";
 
 let routes: Promise<RouteObject[]> | undefined;
 
+export async function setup(importFn: (path: string) => Promise<any>) {
+  await loadRoutes(importFn);
+}
+
 export async function getRoutes(): Promise<RouteObject[]> {
+  if (!routes) {
+    throw new Error(
+      "react-router-test-router: routes have not been set up yet. Please call setup() before calling getRoutes()."
+    );
+  }
+
+  return routes;
+}
+
+export async function loadRoutes(
+  importFn: (path: string) => Promise<any>
+): Promise<RouteObject[]> {
   if (routes) {
     return routes;
   }
 
   async function loadRoutes(): Promise<RouteObject[]> {
-    const appDirectory = await findAppDir();
+    const appDirectory = await findAppDir(importFn);
     // Inform the fs-routes module where the app directory is located, otherwise an error will be thrown
     globalThis.__reactRouterAppDirectory = path.join(projectRoot, appDirectory);
 
@@ -42,7 +58,7 @@ export async function getRoutes(): Promise<RouteObject[]> {
       );
     }
 
-    const appRoutesModule = await loadModule(routesFilename);
+    const appRoutesModule = await importFn(routesFilename);
     const appRoutes = await (appRoutesModule.default as RouteConfig);
 
     console.log("loaded routes module");
@@ -58,10 +74,10 @@ export async function getRoutes(): Promise<RouteObject[]> {
       );
     }
 
-    const Root = await loadModule(rootFilename);
+    const Root = await importFn(rootFilename);
 
     const childRoutes = await Promise.all(
-      appRoutes.map((route) => createRouteObject(appDirectory, route))
+      appRoutes.map((route) => createRouteObject(appDirectory, route, importFn))
     );
 
     const rootRoute = {
@@ -87,7 +103,9 @@ export async function getRoutes(): Promise<RouteObject[]> {
   return routes;
 }
 
-async function findAppDir(): Promise<string> {
+async function findAppDir(
+  importFn: (path: string) => Promise<any>
+): Promise<string> {
   const reactRouterConfigFilePath = findFileInProjectRoot(
     "react-router.config",
     { absolutePath: false }
@@ -99,7 +117,7 @@ async function findAppDir(): Promise<string> {
     );
   }
 
-  const reactRouterConfigFile = await loadModule(reactRouterConfigFilePath);
+  const reactRouterConfigFile = await importFn(reactRouterConfigFilePath);
 
   // const appDirectory = path.join(
   //   projectRoot,
@@ -111,12 +129,13 @@ async function findAppDir(): Promise<string> {
 
 async function createRouteObject(
   appDirectory: string,
-  fsRoute: RouteConfigEntry
+  fsRoute: RouteConfigEntry,
+  importFn: (path: string) => Promise<any>
 ): Promise<RouteObject> {
   const modulePath = path.join(appDirectory, fsRoute.file);
 
   console.log("loading route module:", modulePath);
-  const module = await loadModule(modulePath);
+  const module = await importFn(modulePath);
   console.log("loaded route module:", modulePath, {
     default: module.default,
     loader: module.loader,
@@ -127,7 +146,7 @@ async function createRouteObject(
 
   const children = await Promise.all(
     fsRoute.children?.map((childRoute: RouteConfigEntry) =>
-      createRouteObject(appDirectory, childRoute)
+      createRouteObject(appDirectory, childRoute, importFn)
     ) ?? []
   );
 
