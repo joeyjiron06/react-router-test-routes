@@ -6,7 +6,7 @@ import type {
   NonIndexRouteObject,
   RouteObject,
 } from "react-router";
-import { packageDirectory } from "package-directory";
+import { findFileInProjectRoot, loadModule, projectRoot } from "./fileLoader";
 
 /**
  * These are the routes that get rendered during tests. They are needed for certain
@@ -15,70 +15,98 @@ import { packageDirectory } from "package-directory";
  *
  */
 
-let cachedRoutes: Promise<RouteObject[]> | undefined;
+let routes: Promise<RouteObject[]> | undefined;
 
 export async function getRoutes(): Promise<RouteObject[]> {
-  if (cachedRoutes) {
-    return cachedRoutes;
+  if (routes) {
+    return routes;
   }
 
-  cachedRoutes = loadRoutes();
+  async function loadRoutes(): Promise<RouteObject[]> {
+    const appDirectory = await findAppDir();
+    // Inform the fs-routes module where the app directory is located, otherwise an error will be thrown
+    globalThis.__reactRouterAppDirectory = path.join(projectRoot, appDirectory);
 
-  return cachedRoutes;
-}
+    console.log("found appDirectory:", appDirectory);
 
-async function loadRoutes(): Promise<RouteObject[]> {
-  const appDirectory = await findAppDir();
+    const routesFilename = findFileInProjectRoot(
+      path.join(appDirectory, "routes"),
+      {
+        absolutePath: false,
+      }
+    );
 
-  // Inform the fs-routes module where the app directory is located, otherwise an error will be thrown
-  globalThis.__reactRouterAppDirectory = appDirectory;
+    if (!routesFilename) {
+      throw new Error(
+        "react-router-test-router: could not find routes.(ts|js|mjs|mts) in your project root. Please create one to use this library."
+      );
+    }
 
-  const appRoutesModule = await import(path.join(appDirectory, "routes.ts"));
-  const appRoutes = await (appRoutesModule.default as RouteConfig);
+    const appRoutesModule = await loadModule(routesFilename);
+    const appRoutes = await (appRoutesModule.default as RouteConfig);
 
-  const stubRoutes = await Promise.all(
-    appRoutes.map((route) => createRouteObject(appDirectory, route))
-  );
+    console.log("loaded routes module");
 
-  const Root = await import(path.join(appDirectory, "root.tsx"));
+    const rootFilename = findFileInProjectRoot(
+      path.join(appDirectory, "root"),
+      { absolutePath: false }
+    );
 
-  const rootRoute = {
-    routeId: "root",
-    path: "/",
-  };
+    if (!rootFilename) {
+      throw new Error(
+        `react-router-test-router: could not find root.(ts|js|mjs|mts) in your project root: ${projectRoot}. Please create one to use this library.`
+      );
+    }
 
-  return [
-    {
-      id: rootRoute.routeId,
-      path: rootRoute.path,
-      Component: Root.default,
-      loader: routerMiddleware.wrapLoader(rootRoute, Root.loader),
-      action: routerMiddleware.wrapAction(rootRoute, Root.action),
-      ErrorBoundary: Root.ErrorBoundary,
-      children: stubRoutes,
-    },
-  ];
+    const Root = await loadModule(rootFilename);
+
+    const childRoutes = await Promise.all(
+      appRoutes.map((route) => createRouteObject(appDirectory, route))
+    );
+
+    const rootRoute = {
+      routeId: "root",
+      path: "/",
+    };
+
+    return [
+      {
+        id: rootRoute.routeId,
+        path: rootRoute.path,
+        Component: Root.default,
+        loader: routerMiddleware.wrapLoader(rootRoute, Root.loader),
+        action: routerMiddleware.wrapAction(rootRoute, Root.action),
+        ErrorBoundary: Root.ErrorBoundary,
+        children: childRoutes,
+      },
+    ];
+  }
+
+  routes = loadRoutes();
+
+  return routes;
 }
 
 async function findAppDir(): Promise<string> {
-  const pkgDir = await packageDirectory();
+  const reactRouterConfigFilePath = findFileInProjectRoot(
+    "react-router.config",
+    { absolutePath: false }
+  );
 
-  if (!pkgDir) {
+  if (!reactRouterConfigFilePath) {
     throw new Error(
-      "react-router-test-router: could not find your package root directory. Please log an issue on github."
+      "react-router-test-router: could not find react-router.config.(ts|js|mjs|mts) in your project root. Please create one to use this library."
     );
   }
 
-  const reactRouterConfigFile = await import(
-    path.join(pkgDir, "react-router.config.ts")
-  );
+  const reactRouterConfigFile = await loadModule(reactRouterConfigFilePath);
 
-  const appDirectory = path.join(
-    pkgDir,
-    reactRouterConfigFile.default.appDirectory || "app"
-  );
+  // const appDirectory = path.join(
+  //   projectRoot,
 
-  return appDirectory;
+  // );
+
+  return reactRouterConfigFile.default.appDirectory || "app";
 }
 
 async function createRouteObject(
@@ -87,7 +115,15 @@ async function createRouteObject(
 ): Promise<RouteObject> {
   const modulePath = path.join(appDirectory, fsRoute.file);
 
-  const module = await import(modulePath);
+  console.log("loading route module:", modulePath);
+  const module = await loadModule(modulePath);
+  console.log("loaded route module:", modulePath, {
+    default: module.default,
+    loader: module.loader,
+    action: module.action,
+    ErrorBoundary: module.ErrorBoundary,
+    HydrateFallback: module.HydrateFallback,
+  });
 
   const children = await Promise.all(
     fsRoute.children?.map((childRoute: RouteConfigEntry) =>

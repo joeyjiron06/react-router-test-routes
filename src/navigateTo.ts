@@ -5,7 +5,7 @@ import {
   type RouteObject,
 } from "react-router";
 import { getRoutes } from "./routes";
-import { render } from "@testing-library/react";
+import { render, type RenderResult } from "@testing-library/react";
 import React from "react";
 
 type NavigationOptions = {
@@ -23,7 +23,7 @@ type NavigationOptions = {
 export async function navigateTo(
   path: string,
   navigationOptions?: NavigationOptions
-) {
+): Promise<RenderResult> {
   const routes = await getRoutes();
 
   const { context } = await ssrRequest({
