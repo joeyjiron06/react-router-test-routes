@@ -7,7 +7,6 @@ import type {
   RouteObject,
 } from "react-router";
 import { findFileInProjectRoot, projectRoot } from "./fileLoader";
-import React from "react";
 
 /**
  * These are the routes that get rendered during tests. They are needed for certain

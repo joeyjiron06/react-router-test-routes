@@ -12,6 +12,9 @@ type NavigationOptions = {
   headers?: HeadersInit;
 };
 
+// Preload routes once for all navigateTo calls. This helps with performance.
+const routes = await getRoutes();
+
 /**
  * Navigate to a specific path. This will call all the necessary loaders given
  * the specified path. This more or less simulates what would happen in a server-side
@@ -24,8 +27,6 @@ export async function navigateTo(
   path: string,
   navigationOptions?: NavigationOptions
 ): Promise<RenderResult> {
-  const routes = await getRoutes();
-
   const { context } = await ssrRequest({
     routes,
     path,
