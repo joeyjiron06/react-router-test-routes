@@ -17,6 +17,18 @@ This library addresses these limitations by providing a thin abstraction to enab
 **Basic Usage**
 The simplest way to use this library.
 
+Update vite.config.ts
+
+```ts
+import testRoutes from "react-router-test-routes/vite";
+
+export default defineConfig({
+  plugins: [
+    testRoutes(), // <- add plugin
+  ],
+});
+```
+
 ```tsx
 import { navigateTo } from "react-router-test-routes";
 
@@ -54,8 +66,8 @@ import { navigateTo, routerMiddleware } from "react-router-test-routes";
 beforeAll(() => {
   // add an auth header to all requests when calling navigateTo
   routerMiddleware.use(({ request, route }) => {
-    // only append headers for root route, otherwise we might append it multiple times
-    if (route.id === "root") {
+    // only append headers if its not in there, otherwise we might append it multiple times
+    if (!request.headers.has("my-auth-header")) {
       request.headers.append("my-auth-header", "someUserWhoIsAwesomeAuthToken");
     }
   });
