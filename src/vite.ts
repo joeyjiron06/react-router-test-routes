@@ -17,7 +17,7 @@ export default function reactRouterTestRoutesPlugin(): Plugin {
     // Only run in dev or Vitest — skip production builds
     apply: ({ mode }) => mode === "test",
 
-    config: (userConfig: UserConfig) => {
+    config: (userConfig) => {
       const ssr = userConfig.ssr ?? {};
       const optimizeDeps = userConfig.optimizeDeps ?? {};
 
@@ -36,15 +36,13 @@ export default function reactRouterTestRoutesPlugin(): Plugin {
     },
 
     configResolved(config) {
-      if (config.mode === "test") {
-        if (
-          !Array.isArray(config.ssr?.noExternal) ||
-          !config.ssr?.noExternal?.includes(pkgName)
-        ) {
-          console.warn(
-            `⚠️  [${pkgName}] Missing from ssr.noExternal — dynamic TS imports may fail.`
-          );
-        }
+      if (
+        !Array.isArray(config.ssr?.noExternal) ||
+        !config.ssr?.noExternal?.includes(pkgName)
+      ) {
+        console.warn(
+          `⚠️  [${pkgName}] Missing from ssr.noExternal — dynamic TS imports may fail.`
+        );
       }
     },
   };
