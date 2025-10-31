@@ -1,6 +1,6 @@
 {
   "name": "react-router-test-routes",
-  "version": "1.0.0-beta.6",
+  "version": "1.0.0-beta.7",
   "description": "A utility for react-router get get routes that can be used for testing with vitest.",
   "type": "module",
   "scripts": {
