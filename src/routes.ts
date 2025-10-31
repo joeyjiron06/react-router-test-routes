@@ -66,12 +66,7 @@ export async function getRoutes(): Promise<RouteObject[]> {
       {
         id: rootRoute.routeId,
         path: rootRoute.path,
-        Component: () =>
-          React.createElement(
-            Root.Layout,
-            null,
-            React.createElement(Root.default)
-          ),
+        Component: Root.default,
         loader: routerMiddleware.wrapLoader(rootRoute, Root.loader),
         action: routerMiddleware.wrapAction(rootRoute, Root.action),
         ErrorBoundary: Root.ErrorBoundary,
