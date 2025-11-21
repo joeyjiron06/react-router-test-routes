@@ -20,14 +20,13 @@ let routes: Promise<RouteObject[]> | undefined;
 export async function getRoutes(): Promise<RouteObject[]> {
   async function loadRoutes(): Promise<RouteObject[]> {
     const appDirectory = await findAppDir();
+    const appDirectoryFullPath = path.join(projectRoot, appDirectory);
+
     // Inform the fs-routes module where the app directory is located, otherwise an error will be thrown
-    globalThis.__reactRouterAppDirectory = path.join(projectRoot, appDirectory);
+    globalThis.__reactRouterAppDirectory = appDirectoryFullPath;
 
     const routesFilename = findFileInProjectRoot(
-      path.join(appDirectory, "routes"),
-      {
-        absolutePath: false,
-      }
+      path.join(appDirectory, "routes")
     );
 
     if (!routesFilename) {
@@ -39,10 +38,7 @@ export async function getRoutes(): Promise<RouteObject[]> {
     const appRoutesModule = await import(routesFilename);
     const appRoutes = await (appRoutesModule.default as RouteConfig);
 
-    const rootFilename = findFileInProjectRoot(
-      path.join(appDirectory, "root"),
-      { absolutePath: false }
-    );
+    const rootFilename = findFileInProjectRoot(path.join(appDirectory, "root"));
 
     if (!rootFilename) {
       throw new Error(
@@ -83,8 +79,7 @@ export async function getRoutes(): Promise<RouteObject[]> {
 
 async function findAppDir(): Promise<string> {
   const reactRouterConfigFilePath = findFileInProjectRoot(
-    "react-router.config",
-    { absolutePath: false }
+    "react-router.config"
   );
 
   if (!reactRouterConfigFilePath) {
@@ -93,7 +88,6 @@ async function findAppDir(): Promise<string> {
     );
   }
 
-  console.log("loading react-router.config from:", reactRouterConfigFilePath);
   const reactRouterConfigFile = await import(reactRouterConfigFilePath);
 
   return reactRouterConfigFile.default.appDirectory || "app";
@@ -103,7 +97,7 @@ async function createRouteObject(
   appDirectory: string,
   fsRoute: RouteConfigEntry
 ): Promise<RouteObject> {
-  const modulePath = path.join(appDirectory, fsRoute.file);
+  const modulePath = path.join(projectRoot, appDirectory, fsRoute.file);
 
   const module = await import(modulePath);
 

@@ -34,17 +34,6 @@ export default function reactRouterTestRoutesPlugin(): Plugin {
 
       return mergedConfig;
     },
-
-    configResolved(config) {
-      if (
-        !Array.isArray(config.ssr?.noExternal) ||
-        !config.ssr?.noExternal?.includes(pkgName)
-      ) {
-        console.warn(
-          `⚠️  [${pkgName}] Missing from ssr.noExternal — dynamic TS imports may fail.`
-        );
-      }
-    },
   };
 }
 

@@ -20,13 +20,18 @@ const routes = await getRoutes();
  * the specified path. This more or less simulates what would happen in a server-side
  * request in a real React Router app.
  *
- * @param path - the path to navigate to
+ * @param path - the path to navigate to, can include search params
  * @returns
  */
 export async function navigateTo(
   path: string,
   navigationOptions?: NavigationOptions
 ): Promise<RenderResult> {
+  // convert it to a url so that we can extract pathname, search, and hash
+  // for the memory router because it doesn't like query params when you
+  // pass them as a plain string in initialEntries.
+  const url = new URL(path, window.location.origin);
+
   const { context } = await ssrRequest({
     routes,
     path,
@@ -40,7 +45,13 @@ export async function navigateTo(
   }
 
   const router = createMemoryRouter(routes, {
-    initialEntries: [path],
+    initialEntries: [
+      {
+        pathname: url.pathname,
+        search: url.search,
+        hash: url.hash,
+      },
+    ],
     initialIndex: 0,
     hydrationData: context,
   });
@@ -64,14 +75,12 @@ async function ssrRequest({
   path: string;
   requestInit?: RequestInit;
 }) {
-  const request = new Request(
-    new URL(path, window.location.origin).toString(),
-    {
-      // You can pass method, headers, cookies, body here to simulate prod
-      method: "GET",
-      ...requestInit,
-    }
-  );
+  const url = new URL(path, window.location.origin).toString();
+  const request = new Request(url, {
+    // You can pass method, headers, cookies, body here to simulate prod
+    method: "GET",
+    ...requestInit,
+  });
 
   const { query } = createStaticHandler(routes);
   const context = await query(request);
