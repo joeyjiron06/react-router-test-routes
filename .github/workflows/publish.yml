@@ -7,6 +7,12 @@ on:
   push:
     branches: [main]
 
+# Using OIDC to avoid secrets/tokens for npm publishing
+# https://docs.npmjs.com/trusted-publishers#step-2-configure-your-cicd-workflow
+permissions:
+  id-token: write  # Required for OIDC
+  contents: read
+
 jobs:
   publish-npm:
     runs-on: ubuntu-latest
@@ -16,8 +22,8 @@ jobs:
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org/
+      # update latest npm version since OIDC requires npm >= 11.5.1
+      - run: npm install -g npm@latest
       - run: npm install
       - run: npm run build
       - run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
